@@ -7,7 +7,6 @@ from inky import *
 from pinky import *
 from clyde import *
 import neat
-import visualize
 
 pygame.init()
 vec = pygame.math.Vector2

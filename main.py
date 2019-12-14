@@ -12,7 +12,7 @@ def run(config_path):
 
 	app = App()
 
-	winner = p.run(app.run, 10) # 50 gens
+	winner = p.run(app.run, 50) # 50 gens
 
 
 if __name__ == "__main__":
