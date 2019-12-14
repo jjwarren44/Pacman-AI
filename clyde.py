@@ -21,6 +21,7 @@ class Clyde(Enemy):
 		if pygame.time.get_ticks() - self.app.game_start_time > 9000:
 
 			self.pix_pos += self.direction*self.speed # move
+			find = self.chase_find_next_tile(self.player.grid_pos)
 
 			if self.in_ghost_house: # manually move left 2 and up 2
 				if self.grid_pos.x == 16 and self.grid_pos.y == 15:
@@ -32,7 +33,6 @@ class Clyde(Enemy):
 			else:
 				if self.time_to_move():
 					if abs(self.grid_pos.x-self.player.grid_pos.x) > 8 or abs(self.grid_pos.y-self.player.grid_pos.y) > 8:
-						find = self.chase_find_next_tile(self.player.grid_pos)
 						self.direction = vec(find[0],find[1])
 					else:
 						find = self.scatter_find_next_tile()

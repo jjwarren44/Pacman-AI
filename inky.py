@@ -22,6 +22,7 @@ class Inky(Enemy):
 		if pygame.time.get_ticks() - self.app.game_start_time > 6000:
 
 			self.pix_pos += self.direction*self.speed # move
+			find = self.find_next_tile(self.player.grid_pos, self.player.direction, self.blinky.grid_pos)
 
 			if self.in_ghost_house: # manually move left 2 and up 2
 				if self.grid_pos.x == 11 and self.grid_pos.y == 15:
@@ -32,7 +33,6 @@ class Inky(Enemy):
 					self.in_ghost_house = False
 			else:
 				if self.time_to_move():
-					find = self.find_next_tile(self.player.grid_pos, self.player.direction, self.blinky.grid_pos)
 					if find != None:
 						self.direction = vec(find[0],find[1])
 
@@ -55,20 +55,25 @@ class Inky(Enemy):
 			y_coord = x_dist * target_slope
 			target_tile = vec(x_coord,y_coord)
 
-			for index, direction in enumerate(self.possible_directions):
-				if direction != self.direction*-1 and self.app.map[int(self.grid_pos.y+direction[1])][int(self.grid_pos.x+direction[0])] != '1' and self.app.map[int(self.grid_pos.y+direction[1])][int(self.grid_pos.x+direction[0])] != 'G':
-					distance = math.sqrt(((self.grid_pos.x+direction[0])-target_tile.x)**2 + ((self.grid_pos.y+direction[1])-target_tile.y)**2)
-					if distance < min_distance or min_distance == 0:
-						min_distance = distance
-						direction_to_move = index
+			try:
+				for index, direction in enumerate(self.possible_directions):
+					if direction != self.direction*-1 and self.app.map[int(self.grid_pos.y+direction[1])][int(self.grid_pos.x+direction[0])] != '1' and self.app.map[int(self.grid_pos.y+direction[1])][int(self.grid_pos.x+direction[0])] != 'G':
+						distance = math.sqrt(((self.grid_pos.x+direction[0])-target_tile.x)**2 + ((self.grid_pos.y+direction[1])-target_tile.y)**2)
+						if distance < min_distance or min_distance == 0:
+							min_distance = distance
+							direction_to_move = index
 
-			# return which direction to move
-			if direction_to_move == 0:
-				return [1,0]
-			elif direction_to_move == 1:
-				return [-1,0]
-			elif direction_to_move == 2:
-				return [0,1]
-			elif direction_to_move == 3:
-				return [0,-1]
+				# return which direction to move
+				if direction_to_move == 0:
+					return [1,0]
+				elif direction_to_move == 1:
+					return [-1,0]
+				elif direction_to_move == 2:
+					return [0,1]
+				elif direction_to_move == 3:
+					return [0,-1]
+
+			except:
+				self.grid_pos = vec(9,15) 
+
 

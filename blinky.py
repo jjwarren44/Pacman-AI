@@ -21,8 +21,9 @@ class Blinky(Enemy):
 		self.pix_pos += self.direction*self.speed # move
 
 		# find next tile to move to based on possible next tiles' distance to pacman
+		find = self.find_next_tile(self.player.grid_pos)
+		
 		if self.time_to_move():
-			find = self.find_next_tile(self.player.grid_pos)
 			self.direction = vec(find[0],find[1])
 
 		# Setting grid position in reference to pix position

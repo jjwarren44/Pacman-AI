@@ -17,10 +17,6 @@ class Player:
 		if self.able_to_move:
 			self.pix_pos += self.direction*self.speed
 
-		# Check if ghost has ran into pacman, restart game if so
-		if self.hit_by_ghost():
-			self.app.state = 'player_lost'
-
 		# Keep player on the grid, can't be on a line but has to be within the lines
 		if self.time_to_move():
 			if self.stored_direction != None:
@@ -84,12 +80,6 @@ class Player:
 		self.app.coins.remove(self.grid_pos) # remove coin
 		self.current_score += 1
 
-	def hit_by_ghost(self):
-		for ghost in self.app.enemies:
-			if self.grid_pos.x == ghost.grid_pos.x and self.grid_pos.y == ghost.grid_pos.y:
-				return True
-
-		return False
 
 
 

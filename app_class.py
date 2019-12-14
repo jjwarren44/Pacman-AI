@@ -6,6 +6,8 @@ from blinky import *
 from inky import *
 from pinky import *
 from clyde import *
+import neat
+import visualize
 
 pygame.init()
 vec = pygame.math.Vector2
@@ -14,41 +16,45 @@ class App:
 	def __init__(self):
 		self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
 		self.clock = pygame.time.Clock()
+		self.state = 'playing'
 		self.running = True
-		self.state = 'start' # start at start screen
 		self.cell_width = MAZE_WIDTH//28 # init grid
 		self.cell_height = MAZE_HEIGHT//30 # init grid
 		self.walls = []
 		self.map = [] # 2d array for ghosts to use to find path to pacman
-		self.coins = []
-		self.enemies = []
-		self.player_pos = None # player position
-		self.enemy_pos = [] # enemy position
-		self.game_start_time = 0 # keep track of when player starts the game
 
-		self.load() # load game
-		self.player = Player(self, self.player_pos) # init player
-		self.make_enemies()
+	def run(self, genomes, config):
 
-	def run(self):
-		while self.running:
-			if self.state == 'start':
-				self.start_events()
-				self.start_update()
-				self.start_draw()
-			elif self.state == 'playing':
-				self.playing_events()
-				self.playing_update()
-				self.playing_draw()
-			elif self.state == 'player_won':
-				self.player_won()
-			elif self.state == 'player_lost':
-				self.player_lost()
+		# NEAT Neural Network
+		for _, g in genomes:
+			self.running = True
+			self.hit_by_ghost = False
+			self.coins = []
+			self.players = []
+			self.enemies = []
+			self.player_pos = None # player position
+			self.enemy_pos = [] # enemy position
+			self.game_start_time = 0 # keep track of when player starts the game
+			self.load() # load game
 
-			self.clock.tick(FPS) # 60, FPS in settings file
+			self.net = neat.nn.FeedForwardNetwork.create(g, config)
+			self.player = Player(self, vec(13,23))
+			self.enemies = self.make_enemies(self.player)
+			g.fitness = 0
 
-		pygame.quit()
-		sys.exit()
+			while self.running:
+				if self.state == 'playing':
+					self.playing_update()
+					self.playing_draw()
+					if self.hit_by_ghost:
+						g.fitness = self.player.current_score
+						self.running = False
+
+				elif self.state == 'player_won':
+					self.player_won()
+
+				self.clock.tick(FPS) # 60, FPS in settings file
+
 
 ######################## HELPER FUNCTIONS ##############################
 
@@ -65,6 +71,7 @@ class App:
 	def load(self):
 		self.background = pygame.image.load('imgs/background.png')
 		self.background = pygame.transform.scale(self.background, (MAZE_WIDTH, MAZE_HEIGHT)) # Scale background to correct size
+		self.game_start_time = pygame.time.get_ticks()
 
 		with open('walls.txt', 'r') as file: # read in walls file and create walls list for wall coordinates
 			for yindex, line in enumerate(file): # enumerate to get coordinates
@@ -73,8 +80,6 @@ class App:
 						self.walls.append(vec(xindex, yindex))
 					elif char == 'C': # if coin, set coordinate to coin
 						self.coins.append(vec(xindex, yindex))
-					elif char == 'P': # if player, set coordinate for player start
-						self.player_pos = (vec(xindex, yindex))
 					elif char in ['2','3','4','5']:
 						self.enemy_pos.append(vec(xindex, yindex))
 					elif char == 'G': # gate for ghost house
@@ -83,61 +88,84 @@ class App:
 				self.map.append([char for char in line]) # create 2d map for ghosts
 
 
-	def make_enemies(self):
+	def make_enemies(self, player_obj):
 		# each enemy is their own object, inheriting from enemy_class
+		enemies = []
 		for index, position in enumerate(self.enemy_pos):
 			if index == 0:
-				blinky_obj = Blinky(self, position, self.player)
-				self.enemies.append(blinky_obj)	
+				blinky_obj = Blinky(self, position, player_obj)
+				enemies.append(blinky_obj)	
 			elif index == 1:
-				self.enemies.append(Pinky(self, position, self.player))
+				enemies.append(Pinky(self, position, player_obj))
 			elif index == 2:
-				self.enemies.append(Inky(self, position, self.player, blinky_obj))
+				enemies.append(Inky(self, position, player_obj, blinky_obj))
 			else:
-				self.enemies.append(Clyde(self, position, self.player))
+				enemies.append(Clyde(self, position, player_obj))
 
-
-######################## INTRO FUNCTIONS ##############################
-
-	def start_events(self):
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				self.running = False
-			if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-				self.state = 'playing'
-				self.game_start_time = pygame.time.get_ticks()
-
-	def start_update(self):
-		pass
-
-	def start_draw(self):
-		self.draw_text('PUSH SPACE BAR', self.screen, [WIDTH//2, HEIGHT//2 - 50], START_TEXT_SIZE, (170, 132, 58), START_FONT, centered=True) # PUSH SPACE BAR text
-		self.draw_text('1 PLAYER ONLY', self.screen, [WIDTH//2, HEIGHT//2 + 50], START_TEXT_SIZE, (44, 167, 198), START_FONT, centered=True) # 1 PLAYER ONLY text
-		pygame.display.update()
+		return enemies
 
 
 ######################## PLAYING FUNCTIONS ##############################
 
-	def playing_events(self):
+	def playing_update(self):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				self.running = False
-			if event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_LEFT:
-					self.player.move(vec(-1,0))
-				if event.key == pygame.K_RIGHT:
-					self.player.move(vec(1,0))
-				if event.key == pygame.K_UP:
-					self.player.move(vec(0,-1))
-				if event.key == pygame.K_DOWN:
-					self.player.move(vec(0,1))
+				pygame.quit()
+				sys.exit()
 
-	def playing_update(self):
+		coin_right = 0
+		coin_left = 0
+		coin_below = 0
+		coin_above = 0
+
+		if self.map[int(self.player.grid_pos.x+1)][int(self.player.grid_pos.y)] == 'C':
+			coin_right = 1
+		if self.map[int(self.player.grid_pos.x-1)][int(self.player.grid_pos.y)] == 'C':
+			coin_left = 1
+		if self.map[int(self.player.grid_pos.x)][int(self.player.grid_pos.y)+1] == 'C':
+			coin_below = 1			
+		if self.map[int(self.player.grid_pos.x+1)][int(self.player.grid_pos.y)-1] == 'C':
+			coin_above = 1
+
+		# activate neural network with inputs = player_pos, blinky_pos, pinky_pos, inky_pos, clyde_pos, all_coins_pos 
+		output = self.net.activate((
+			self.player.grid_pos.x,
+			self.player.grid_pos.y, 
+			self.enemies[0].grid_pos.x,
+			self.enemies[0].grid_pos.y, 
+			self.enemies[1].grid_pos.x,
+			self.enemies[1].grid_pos.y, 
+			self.enemies[2].grid_pos.x,
+			self.enemies[2].grid_pos.y, 
+			self.enemies[3].grid_pos.x,
+			self.enemies[3].grid_pos.y,
+			coin_right,
+			coin_left,
+			coin_below,
+			coin_above
+			))
+
+		direction = output.index(max(output))
+
+		if direction == 0:
+			self.player.move(RIGHT)
+		elif direction == 1:
+			self.player.move(LEFT)
+		elif direction == 2:
+			self.player.move(UP)
+		elif direction == 3:
+			self.player.move(DOWN)
+
 		self.player.update() # update player
 		for enemy in self.enemies: # update enemy
 			enemy.update()
+			if self.player.grid_pos.x == enemy.grid_pos.x and self.player.grid_pos.y == enemy.grid_pos.y:
+				self.hit_by_ghost = True
+
 		if len(self.coins) == 0:
 			self.state = 'player_won'
+
 
 	def playing_draw(self):
 		self.screen.fill(BLACK)
@@ -163,27 +191,8 @@ class App:
 		self.draw_text('PUSH SPACE BAR TO PLAY AGAIN', self.screen, [WIDTH//2, HEIGHT//2 + 100], 28, (44, 167, 198), START_FONT, centered=True) # PUSH SPACE BAR text
 		pygame.display.update()
 
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				self.running = False
-			if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-				self.screen.fill(pygame.Color("black"))
-				self.__init__()
-
 ######################## PLAYER LOST ##############################
 
 	def player_lost(self):
-		self.draw_text('YOU LOST :(', self.screen, [WIDTH//2, HEIGHT//2 - 100], 36, (170, 132, 58), START_FONT, centered=True) # PUSH SPACE BAR text
-		self.draw_text('PUSH SPACE BAR TO PLAY AGAIN', self.screen, [WIDTH//2, HEIGHT//2 + 100], 28, (44, 167, 198), START_FONT, centered=True) # PUSH SPACE BAR text
-		pygame.display.update()
-
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				self.running = False
-			if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-				self.screen.fill(pygame.Color("black"))
-				self.__init__()
-
-
-
+		self.__init__()
 

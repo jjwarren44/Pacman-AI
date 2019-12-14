@@ -21,6 +21,7 @@ class Pinky(Enemy):
 		if pygame.time.get_ticks() - self.app.game_start_time > 3000:
 
 			self.pix_pos += self.direction*self.speed # move
+			find = self.find_next_tile(self.player.grid_pos, self.player.direction)
 
 			if self.in_ghost_house: # manually move left 2 and up 2
 				if self.grid_pos.x == 16 and self.grid_pos.y == 13:
@@ -31,7 +32,6 @@ class Pinky(Enemy):
 					self.in_ghost_house = False
 			else:
 				if self.time_to_move():
-					find = self.find_next_tile(self.player.grid_pos, self.player.direction)
 					self.direction = vec(find[0],find[1])
 
 		# Setting grid position in reference to pix position
