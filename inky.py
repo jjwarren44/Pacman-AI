@@ -19,7 +19,7 @@ class Inky(Enemy):
 
 	# Get position of 2 tiles in front of pacman, draw a line from blinky to this tile, and double the length of this line. This points to inky's target tile. 
 	def update(self):
-		if pygame.time.get_ticks() - self.app.game_start_time > 6000:
+		if len(self.app.coins) < 215:
 
 			self.pix_pos += self.direction*self.speed # move
 			find = self.find_next_tile(self.player.grid_pos, self.player.direction, self.blinky.grid_pos)

@@ -18,7 +18,7 @@ class Clyde(Enemy):
 		self.in_ghost_house = True
 
 	def update(self):
-		if pygame.time.get_ticks() - self.app.game_start_time > 9000:
+		if len(self.app.coins) < 164:
 
 			self.pix_pos += self.direction*self.speed # move
 			find = self.chase_find_next_tile(self.player.grid_pos)

@@ -10,7 +10,7 @@ class Enemy(object):
 		self.pix_pos = self.get_pix_pos()
 		self.direction = vec(0,0)
 		self.img = img
-		self.speed = 2
+		self.speed = 1
 		self.player = player_obj
 		self.in_ghost_house = True
 

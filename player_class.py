@@ -54,12 +54,14 @@ class Player:
 				return True
 
 		# else
+		#print('not time to move')
 		return False
 
 	# Function to handle whether or not there is a wall in the way
 	def can_move(self):
 		for wall in self.app.walls:
 			if vec(self.grid_pos+self.direction) == wall: # if player hits wall, dont allow movement
+				#print("wall there")
 				return False
 		return True
 

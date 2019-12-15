@@ -7,6 +7,7 @@ from inky import *
 from pinky import *
 from clyde import *
 import neat
+import pickle
 
 pygame.init()
 vec = pygame.math.Vector2
@@ -21,20 +22,27 @@ class App:
 		self.cell_height = MAZE_HEIGHT//30 # init grid
 		self.walls = []
 		self.map = [] # 2d array for ghosts to use to find path to pacman
+		self.background = pygame.image.load('imgs/background.png')
+		self.background = pygame.transform.scale(self.background, (MAZE_WIDTH, MAZE_HEIGHT)) # Scale background to correct size
+		self.generation = 0
+		self.best_genome = None
 
 	def run(self, genomes, config):
+		self.generation += 1
+		if self.generation % 10 == 0:
+				file = open('saved_genomes/gen{}'.format(self.generation), 'wb')
+				pickle.dump(self.best_genome, file)
+				file.close()
 
 		# NEAT Neural Network
 		for _, g in genomes:
 			self.running = True
 			self.hit_by_ghost = False
 			self.coins = []
-			self.players = []
 			self.enemies = []
-			self.player_pos = None # player position
-			self.enemy_pos = [] # enemy position
+			self.enemy_pos = []
 			self.game_start_time = 0 # keep track of when player starts the game
-			self.load() # load game
+			self.load()
 
 			self.net = neat.nn.FeedForwardNetwork.create(g, config)
 			self.player = Player(self, vec(13,23))
@@ -47,6 +55,11 @@ class App:
 					self.playing_draw()
 					if self.hit_by_ghost:
 						g.fitness = self.player.current_score
+						if self.best_genome != None:
+							if g.fitness > self.best_genome.fitness:
+								self.best_genome = g
+						else:
+							self.best_genome = g
 						self.running = False
 
 				elif self.state == 'player_won':
@@ -68,8 +81,6 @@ class App:
 
 	# Load images and walls on init
 	def load(self):
-		self.background = pygame.image.load('imgs/background.png')
-		self.background = pygame.transform.scale(self.background, (MAZE_WIDTH, MAZE_HEIGHT)) # Scale background to correct size
 		self.game_start_time = pygame.time.get_ticks()
 
 		with open('walls.txt', 'r') as file: # read in walls file and create walls list for wall coordinates
@@ -113,36 +124,37 @@ class App:
 				pygame.quit()
 				sys.exit()
 
-		coin_right = 0
-		coin_left = 0
-		coin_below = 0
-		coin_above = 0
+		wall_left = 0
+		wall_right = 0
+		wall_up = 0
+		wall_down = 0
 
-		if self.map[int(self.player.grid_pos.x+1)][int(self.player.grid_pos.y)] == 'C':
-			coin_right = 1
-		if self.map[int(self.player.grid_pos.x-1)][int(self.player.grid_pos.y)] == 'C':
-			coin_left = 1
-		if self.map[int(self.player.grid_pos.x)][int(self.player.grid_pos.y)+1] == 'C':
-			coin_below = 1			
-		if self.map[int(self.player.grid_pos.x+1)][int(self.player.grid_pos.y)-1] == 'C':
-			coin_above = 1
+		if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x+1)] == '1':
+			wall_right = 1
+		if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x-1)] == '1':
+			wall_left = 1
+		if self.map[int(self.player.grid_pos.y-1)][int(self.player.grid_pos.x)] == '1':
+			wall_up = 1
+		if self.map[int(self.player.grid_pos.y+1)][int(self.player.grid_pos.x)] == '1':
+			wall_down = 1
 
 		# activate neural network with inputs = player_pos, blinky_pos, pinky_pos, inky_pos, clyde_pos, all_coins_pos 
 		output = self.net.activate((
 			self.player.grid_pos.x,
-			self.player.grid_pos.y, 
+			self.player.grid_pos.y,
+			self.player.can_move(),
 			self.enemies[0].grid_pos.x,
-			self.enemies[0].grid_pos.y, 
+			self.enemies[0].grid_pos.y,
 			self.enemies[1].grid_pos.x,
-			self.enemies[1].grid_pos.y, 
+			self.enemies[1].grid_pos.y,
 			self.enemies[2].grid_pos.x,
-			self.enemies[2].grid_pos.y, 
+			self.enemies[2].grid_pos.y,
 			self.enemies[3].grid_pos.x,
 			self.enemies[3].grid_pos.y,
-			coin_right,
-			coin_left,
-			coin_below,
-			coin_above
+			wall_right,
+			wall_left,
+			wall_up,
+			wall_down
 			))
 
 		direction = output.index(max(output))
@@ -171,6 +183,7 @@ class App:
 		self.screen.blit(self.background, (TOP_BOTTOM_BUFFER//2, TOP_BOTTOM_BUFFER//2))
 		self.draw_coins()
 		self.draw_text('CURRENT SCORE: {}'.format(self.player.current_score), self.screen, [60, 2], START_TEXT_SIZE, WHITE, START_FONT)
+		self.draw_text('GENERATION: {}'.format(self.generation), self.screen, [350, 2], START_TEXT_SIZE, WHITE, START_FONT)
 		self.player.draw() # draw player
 		for enemy in self.enemies: # draw enemies
 			enemy.draw()
