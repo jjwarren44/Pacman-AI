@@ -1,5 +1,8 @@
-# Pacman-Pygame
-Using Pygame in Python to create Pac-Man.
+# Pac-Man AI
+Using NEAT (NeuroEvolution of Augmenting Topologies) to train a neural network to beat Pac-Man
+
+<h2>Results</h2>
+Coming soon...
 
 <h2>The Ghosts' Mechanics (same used in actual Pac-Man)</h2>
 <img src="https://github.com/jjwarren44/Pacman-Pygame/blob/master/imgs/info_imgs/ghosts%20mechanics.png">
@@ -9,9 +12,8 @@ In normal Pac-Man, ghosts have "chase mode" and "scatter mode". Chase mode is wh
 <br/>
 There is also usually "power pellets" that give Pac-Man the ability to eat the ghosts for a temporary time. For the same reason as above, I did not add these.
 
-<h2>How to Run and Play this Game</h2>
-Just make sure you have pygame installed (check reference below on instructions, I used version 2.0.0 for this) and type "python main.py" from the command-line (while in directory of where the files are stored).
-
 <h2>References</h2>
+<a href='https://neat-python.readthedocs.io/en/latest/neat_overview.html'>NEAT Documentation</a><br/>
+<a href='http://nn.cs.utexas.edu/downloads/papers/stanley.cec02.pdf'>Paper on how NEAT works</a><br/>
 <a href='https://gameinternals.com/understanding-pac-man-ghost-behavior'>Ghost Mechanics</a> <br/>
 <a href='https://www.pygame.org/wiki/GettingStarted'>Getting Started with Pygame</a>
