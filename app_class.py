@@ -29,7 +29,7 @@ class App:
 
 	def run(self, genomes, config):
 		self.generation += 1
-		if self.generation % 10 == 0:
+		if self.generation % 5 == 0:
 				file = open('saved_genomes/gen{}'.format(self.generation), 'wb')
 				pickle.dump(self.best_genome, file)
 				file.close()
@@ -42,6 +42,7 @@ class App:
 			self.enemies = []
 			self.enemy_pos = []
 			self.game_start_time = 0 # keep track of when player starts the game
+			self.loops_since_direction_chg = 0
 			self.load()
 
 			self.net = neat.nn.FeedForwardNetwork.create(g, config)
@@ -53,8 +54,8 @@ class App:
 				if self.state == 'playing':
 					self.playing_update()
 					self.playing_draw()
+					g.fitness = self.player.current_score
 					if self.hit_by_ghost:
-						g.fitness = self.player.current_score
 						if self.best_genome != None:
 							if g.fitness > self.best_genome.fitness:
 								self.best_genome = g
@@ -97,7 +98,6 @@ class App:
 
 				self.map.append([char for char in line]) # create 2d map for ghosts
 
-
 	def make_enemies(self, player_obj):
 		# each enemy is their own object, inheriting from enemy_class
 		enemies = []
@@ -124,48 +124,80 @@ class App:
 				pygame.quit()
 				sys.exit()
 
-		wall_left = 0
-		wall_right = 0
-		wall_up = 0
-		wall_down = 0
+		left = 0
+		right = 0
+		up = 0
+		down = 0
+		enemy_left = 0
+		enemy_right = 0
+		enemy_up = 0
+		enemy_down = 0
+		
+		self.loops_since_direction_chg += 1
+		if self.loops_since_direction_chg > 500:
+			self.hit_by_ghost = True
 
 		if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x+1)] == '1':
-			wall_right = 1
+			right = -1
+		elif vec(self.player.grid_pos.y,self.player.grid_pos.x+1) in self.coins:
+			right = 1
+		
 		if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x-1)] == '1':
-			wall_left = 1
-		if self.map[int(self.player.grid_pos.y-1)][int(self.player.grid_pos.x)] == '1':
-			wall_up = 1
-		if self.map[int(self.player.grid_pos.y+1)][int(self.player.grid_pos.x)] == '1':
-			wall_down = 1
+			left = -1
+		elif vec(self.player.grid_pos.y,self.player.grid_pos.x-1) in self.coins:
+			left = 1
 
-		# activate neural network with inputs = player_pos, blinky_pos, pinky_pos, inky_pos, clyde_pos, all_coins_pos 
+		if self.map[int(self.player.grid_pos.y-1)][int(self.player.grid_pos.x)] == '1':
+			up = -1
+		elif vec(self.player.grid_pos.y-1,self.player.grid_pos.x) in self.coins:
+			up = 1
+
+		if self.map[int(self.player.grid_pos.y+1)][int(self.player.grid_pos.x)] == '1':
+			down = -1
+		elif vec(self.player.grid_pos.y+1,self.player.grid_pos.x) in self.coins:
+			down = 1
+
+		for enemy in self.enemies:
+			if 0 <= enemy.grid_pos.x - self.player.grid_pos.x < 3 and enemy.grid_pos.y == self.player.grid_pos.y:
+				enemy_right = -1
+			if -3 < enemy.grid_pos.x - self.player.grid_pos.x <= 0 and enemy.grid_pos.y == self.player.grid_pos.y:
+				enemy_left = -1
+			if 0 <= enemy.grid_pos.y - self.player.grid_pos.y < 3 and enemy.grid_pos.x == self.player.grid_pos.x:
+				enemy_down = -1
+			if -3 < enemy.grid_pos.y - self.player.grid_pos.y <= 0 and enemy.grid_pos.x == self.player.grid_pos.x:
+				enemy_up = -1
+
+
+		# activate neural network
 		output = self.net.activate((
-			self.player.grid_pos.x,
-			self.player.grid_pos.y,
 			self.player.can_move(),
-			self.enemies[0].grid_pos.x,
-			self.enemies[0].grid_pos.y,
-			self.enemies[1].grid_pos.x,
-			self.enemies[1].grid_pos.y,
-			self.enemies[2].grid_pos.x,
-			self.enemies[2].grid_pos.y,
-			self.enemies[3].grid_pos.x,
-			self.enemies[3].grid_pos.y,
-			wall_right,
-			wall_left,
-			wall_up,
-			wall_down
+			right,
+			left,
+			up,
+			down,
+			enemy_left,
+			enemy_right,			
+			enemy_up,
+			enemy_down
 			))
 
 		direction = output.index(max(output))
 
 		if direction == 0:
+			if self.player.direction != RIGHT:
+				self.loops_since_direction_chg = 0
 			self.player.move(RIGHT)
 		elif direction == 1:
+			if self.player.direction != LEFT:
+				self.loops_since_direction_chg = 0
 			self.player.move(LEFT)
 		elif direction == 2:
+			if self.player.direction != UP:
+				self.loops_since_direction_chg = 0
 			self.player.move(UP)
 		elif direction == 3:
+			if self.player.direction != DOWN:
+				self.loops_since_direction_chg = 0
 			self.player.move(DOWN)
 
 		self.player.update() # update player
