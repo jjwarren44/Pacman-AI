@@ -8,7 +8,6 @@ from pinky import *
 from clyde import *
 import neat
 import pickle
-
 pygame.init()
 vec = pygame.math.Vector2
 
@@ -22,17 +21,13 @@ class App:
 		self.cell_height = MAZE_HEIGHT//30 # init grid
 		self.walls = []
 		self.map = [] # 2d array for ghosts to use to find path to pacman
-		self.background = pygame.image.load('imgs/background.png')
+		self.background = pygame.image.load('imgs/background.png').convert()
 		self.background = pygame.transform.scale(self.background, (MAZE_WIDTH, MAZE_HEIGHT)) # Scale background to correct size
-		self.generation = 0
+		self.generation = -1
 		self.best_genome = None
 
 	def run(self, genomes, config):
 		self.generation += 1
-		if self.generation % 5 == 0:
-				file = open('saved_genomes/gen{}'.format(self.generation), 'wb')
-				pickle.dump(self.best_genome, file)
-				file.close()
 
 		# NEAT Neural Network
 		for _, g in genomes:
@@ -41,13 +36,16 @@ class App:
 			self.coins = []
 			self.enemies = []
 			self.enemy_pos = []
+			self.map = [] # 2d array for ghosts to use to find path to pacman
 			self.game_start_time = 0 # keep track of when player starts the game
-			self.loops_since_direction_chg = 0
+			self.loops_since_score_chg = 0
+			self.prev_score = 0
 			self.load()
+			self.time_since_last_coin = pygame.time.get_ticks()
 
 			self.net = neat.nn.FeedForwardNetwork.create(g, config)
 			self.player = Player(self, vec(13,23))
-			self.enemies = self.make_enemies(self.player)
+			#self.enemies = self.make_enemies(self.player)
 			g.fitness = 0
 
 			while self.running:
@@ -56,11 +54,6 @@ class App:
 					self.playing_draw()
 					g.fitness = self.player.current_score
 					if self.hit_by_ghost:
-						if self.best_genome != None:
-							if g.fitness > self.best_genome.fitness:
-								self.best_genome = g
-						else:
-							self.best_genome = g
 						self.running = False
 
 				elif self.state == 'player_won':
@@ -123,21 +116,22 @@ class App:
 				self.running = False
 				pygame.quit()
 				sys.exit()
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_LEFT:
+					self.hit_by_ghost = True
 
-		left = 0
-		right = 0
-		up = 0
-		down = 0
-		enemy_left = 0
-		enemy_right = 0
-		enemy_up = 0
-		enemy_down = 0
-		
-		self.loops_since_direction_chg += 1
-		if self.loops_since_direction_chg > 500:
-			self.hit_by_ghost = True
+		num_coins = self.player.num_coins_on_path()
 
-		if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x+1)] == '1':
+		num_coins_left = num_coins[0]
+		num_coins_right = num_coins[1]
+		num_coins_up = num_coins[2]
+		num_coins_down = num_coins[3]
+		distance_to_blinky = 0
+		distance_to_pinky = 0
+		distance_to_inky = 0
+		distance_to_clyde = 0
+
+		'''if self.map[int(self.player.grid_pos.y)][int(self.player.grid_pos.x+1)] == '1':
 			right = -1
 		elif vec(self.player.grid_pos.y,self.player.grid_pos.x+1) in self.coins:
 			right = 1
@@ -155,9 +149,9 @@ class App:
 		if self.map[int(self.player.grid_pos.y+1)][int(self.player.grid_pos.x)] == '1':
 			down = -1
 		elif vec(self.player.grid_pos.y+1,self.player.grid_pos.x) in self.coins:
-			down = 1
+			down = 1'''
 
-		for enemy in self.enemies:
+		'''for enemy in self.enemies:
 			if 0 <= enemy.grid_pos.x - self.player.grid_pos.x < 3 and enemy.grid_pos.y == self.player.grid_pos.y:
 				enemy_right = -1
 			if -3 < enemy.grid_pos.x - self.player.grid_pos.x <= 0 and enemy.grid_pos.y == self.player.grid_pos.y:
@@ -165,46 +159,57 @@ class App:
 			if 0 <= enemy.grid_pos.y - self.player.grid_pos.y < 3 and enemy.grid_pos.x == self.player.grid_pos.x:
 				enemy_down = -1
 			if -3 < enemy.grid_pos.y - self.player.grid_pos.y <= 0 and enemy.grid_pos.x == self.player.grid_pos.x:
-				enemy_up = -1
+				enemy_up = -1'''
 
+		'''for coin in self.coins:
+			if coin.x < 15 and coin.y < 15:
+				coins_upper_left += 0.1
+			elif coin.x < 15 and coin.y > 15:
+				coins_bottom_left += 0.1
+			elif coin.x > 15 and coin.y < 15:
+				coins_upper_right += 0.1			
+			elif coin.x > 15 and coin.y > 15:
+				coins_bottom_right += 0.1'''
 
 		# activate neural network
-		output = self.net.activate((
-			self.player.can_move(),
-			right,
-			left,
-			up,
-			down,
-			enemy_left,
-			enemy_right,			
-			enemy_up,
-			enemy_down
+		outputs = self.net.activate((
+			num_coins_left,
+			num_coins_right,
+			num_coins_up,
+			num_coins_down,
+			distance_to_blinky,
+			distance_to_pinky,
+			distance_to_inky,
+			distance_to_clyde
 			))
 
-		direction = output.index(max(output))
+		#direction = output.index(max(output))
+		maxVal = 0
+		direction = 0
+		for idx, output in enumerate(outputs):
+			if output > maxVal:
+				maxVal = output
+				direction = idx
 
-		if direction == 0:
-			if self.player.direction != RIGHT:
-				self.loops_since_direction_chg = 0
-			self.player.move(RIGHT)
-		elif direction == 1:
-			if self.player.direction != LEFT:
-				self.loops_since_direction_chg = 0
-			self.player.move(LEFT)
-		elif direction == 2:
-			if self.player.direction != UP:
-				self.loops_since_direction_chg = 0
-			self.player.move(UP)
-		elif direction == 3:
-			if self.player.direction != DOWN:
-				self.loops_since_direction_chg = 0
-			self.player.move(DOWN)
+		# only change direction if output is > 0.8
+		if maxVal > 0.8:
+			if direction == 0:
+				self.player.move(LEFT)
+			elif direction == 1:
+				self.player.move(RIGHT)
+			elif direction == 2:
+				self.player.move(UP)
+			elif direction == 3:
+				self.player.move(DOWN)
 
 		self.player.update() # update player
-		for enemy in self.enemies: # update enemy
+		'''for enemy in self.enemies: # update enemy
 			enemy.update()
 			if self.player.grid_pos.x == enemy.grid_pos.x and self.player.grid_pos.y == enemy.grid_pos.y:
-				self.hit_by_ghost = True
+				self.hit_by_ghost = True'''
+
+		if self.time_since_last_coin + 2500 < pygame.time.get_ticks():
+			self.hit_by_ghost = True
 
 		if len(self.coins) == 0:
 			self.state = 'player_won'
@@ -217,8 +222,8 @@ class App:
 		self.draw_text('CURRENT SCORE: {}'.format(self.player.current_score), self.screen, [60, 2], START_TEXT_SIZE, WHITE, START_FONT)
 		self.draw_text('GENERATION: {}'.format(self.generation), self.screen, [350, 2], START_TEXT_SIZE, WHITE, START_FONT)
 		self.player.draw() # draw player
-		for enemy in self.enemies: # draw enemies
-			enemy.draw()
+		#for enemy in self.enemies: # draw enemies
+		#	enemy.draw()
 
 		pygame.display.update()
 
@@ -239,4 +244,3 @@ class App:
 
 	def player_lost(self):
 		self.__init__()
-

@@ -12,6 +12,9 @@ class Player:
 		self.able_to_move = True
 		self.current_score = 0
 		self.speed = 2
+		self.hit_by_ghost = False
+		self.prev_score = 0
+		self.loops_since_fitness_chg = 0
 
 	def update(self):
 		if self.able_to_move:
@@ -19,7 +22,7 @@ class Player:
 
 		# Keep player on the grid, can't be on a line but has to be within the lines
 		if self.time_to_move():
-			if self.stored_direction != None:
+			if self.stored_direction != None and vec(self.grid_pos + self.stored_direction) not in self.app.walls:
 				self.direction = self.stored_direction
 			self.able_to_move = self.can_move()
 
@@ -53,16 +56,13 @@ class Player:
 			if self.direction == vec(0,1) or self.direction == vec(0,-1):
 				return True
 
-		# else
-		#print('not time to move')
 		return False
 
 	# Function to handle whether or not there is a wall in the way
 	def can_move(self):
-		for wall in self.app.walls:
-			if vec(self.grid_pos+self.direction) == wall: # if player hits wall, dont allow movement
-				#print("wall there")
-				return False
+		if vec(self.grid_pos + self.direction) in self.app.walls:
+			return False
+		
 		return True
 
 	# Function to check if player is on coin
@@ -79,9 +79,64 @@ class Player:
 		return False
 
 	def eat_coin(self):
-		self.app.coins.remove(self.grid_pos) # remove coin
+		self.app.coins.remove(self.grid_pos) # remove coin from list of coin vectors
+		self.app.map[int(self.grid_pos.y)][int(self.grid_pos.x)] = '0' # remove coin from map
 		self.current_score += 1
+		self.app.time_since_last_coin = pygame.time.get_ticks()
 
+	def num_coins_on_path(self):
+		num_coins = [] #left, right, up, down
+
+		#left
+		num_coins_in_direction = 0
+		x = int(self.grid_pos.x)
+		while(True):
+			if self.app.map[int(self.grid_pos.y)][x - 1] == '1':
+				num_coins.append(num_coins_in_direction)
+				break
+			else:
+				if self.app.map[int(self.grid_pos.y)][x - 1] == 'C':
+					num_coins_in_direction += 1
+				x -= 1
+					
+		
+		#right
+		num_coins_in_direction = 0
+		x = int(self.grid_pos.x)
+		while(True):
+			if self.app.map[int(self.grid_pos.y)][x + 1] == '1':
+				num_coins.append(num_coins_in_direction)
+				break
+			else:
+				if self.app.map[int(self.grid_pos.y)][x + 1] == 'C':
+					num_coins_in_direction += 1
+				x += 1
+		
+		#up
+		num_coins_in_direction = 0
+		y = int(self.grid_pos.y)
+		while(True):
+			if self.app.map[y - 1][int(self.grid_pos.x)] == '1':
+				num_coins.append(num_coins_in_direction)
+				break
+			else:
+				if self.app.map[y - 1][int(self.grid_pos.x)] == 'C':
+					num_coins_in_direction += 1
+				y -= 1
+
+		#down
+		num_coins_in_direction = 0
+		y = int(self.grid_pos.y)
+		while(True):
+			if self.app.map[y + 1][int(self.grid_pos.x)] == '1':
+				num_coins.append(num_coins_in_direction)
+				break
+			else:
+				if self.app.map[y + 1][int(self.grid_pos.x)] == 'C':
+					num_coins_in_direction += 1
+				y += 1
+
+		return num_coins
 
 
 
