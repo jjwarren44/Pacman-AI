@@ -1,9 +1,6 @@
 # Pac-Man AI
 Using NEAT (NeuroEvolution of Augmenting Topologies) to train a neural network to beat Pac-Man
 
-<h2>Results</h2>
-Coming soon...
-
 <h2>The Ghosts' Mechanics (same used in actual Pac-Man)</h2>
 <img src="https://github.com/jjwarren44/Pacman-Pygame/blob/master/imgs/info_imgs/ghosts%20mechanics.png">
 
